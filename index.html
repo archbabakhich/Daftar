@@ -160,6 +160,17 @@ svg.i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stro
 .toast{position:fixed;inset-inline:16px;bottom:calc(84px + env(safe-area-inset-bottom,0px));margin-inline:auto;width:fit-content;max-width:calc(100% - 32px);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:10px;font-size:13.5px;z-index:20}
 .file{display:inline-flex;align-items:center}
 .file input{position:absolute;opacity:0;width:1px;height:1px}
+
+#splash{position:fixed;inset:0;z-index:99;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;transition:opacity .5s ease}
+#splash.out{opacity:0;pointer-events:none}
+#splash img{width:min(78vw,340px);height:auto}
+#splash b{font-family:'Aref Ruqaa','Vazirmatn',serif;font-size:30px;color:#1D3A8F}
+#splash small{font-size:13.5px;color:#4B5873}
+.about{text-align:center}
+.about .logo{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px;margin:0 auto 10px;max-width:300px}
+.about .logo img{display:block;width:100%;height:auto}
+.about p{margin:2px 0;font-size:13.5px;color:var(--ink-2)}
+.about p b{color:var(--ink)}
 </style>
 </head>
 <body>
@@ -186,6 +197,7 @@ svg.i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stro
 
 <button class="fab" id="fab" data-act="fab" aria-label="ثبت جدید" dir="rtl"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
 
+<div id="splash" dir="rtl" lang="fa" data-act="splash"><img src="logo.png" alt="Lion and Sun – Architecture Studio"><b>دفتر حساب</b><small>طراح: بابک محمدزاده</small></div>
 <div id="sheetRoot" dir="rtl" lang="fa"></div>
 <div id="toastRoot" dir="rtl" lang="fa"></div>
 <script>
@@ -524,6 +536,7 @@ function vSettings(){
   h+='<label class="btn ghost sm file" for="restore">بازیابی از پشتیبان<input type="file" id="restore" accept=".json,.txt,application/json,text/plain"></label></div><p class="hint" style="margin-top:10px">آخرین پشتیبان: '+(S.settings.lastBackup?fDate(S.settings.lastBackup):'هنوز گرفته نشده')+'</p>';
   if(pending)h+='<p class="hint" style="margin-top:12px">فایل خوانده شد: '+nf.format(pending.entries.length)+' ثبت و '+nf.format(pending.contracts.length)+' قرارداد. با بازیابی، داده‌های فعلی جایگزین می‌شوند.</p><div class="actions" style="margin-top:8px"><button class="btn sm" data-act="do-restore">جایگزین کن</button><button class="btn ghost sm" data-act="cancel-restore">انصراف</button></div>';
   h+='</section><section class="panel"><p class="label">ذخیره‌سازی</p><p class="hint" style="margin:0">داده‌ها فقط روی همین گوشی و داخل خود برنامه ذخیره می‌شوند و جای دیگری فرستاده نمی‌شوند. اگر برنامه یا اطلاعات مرورگر را پاک کنید، داده‌ها از بین می‌روند؛ پس گاهی «پشتیبان کامل» بگیرید و در جای امن نگه دارید.</p></section>'+(installEv?'<section class="panel"><p class="label">نصب</p><button class="btn" data-act="install">نصب روی صفحه اصلی گوشی</button></section>':'');
+  h+='<section class="panel about"><p class="label">درباره برنامه</p><div class="logo"><img src="logo.png" alt="Lion and Sun – Architecture Studio"></div><p><b>دفتر حساب</b> · نسخه ۱٫۰</p><p>طراح و سازنده: <b>بابک محمدزاده</b></p><p>Architecture Studio Lion and Sun</p></section>';
   return h;
 }
 function render(){
@@ -720,6 +733,11 @@ document.addEventListener('keydown',function(ev){if(ev.key==='Escape')closeSheet
 document.addEventListener('visibilitychange',function(){if(!document.hidden&&S.ready&&!sheetOpen){anchor=anchor;render()}});
 try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
 if('serviceWorker' in navigator&&location.protocol!=='file:'){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})})}
+(function(){var sp=document.getElementById('splash');if(!sp)return;
+  var seen=false;try{seen=sessionStorage.getItem('splash1')==='1';sessionStorage.setItem('splash1','1')}catch(e){}
+  function hide(){sp.classList.add('out');setTimeout(function(){sp.remove()},600)}
+  if(seen){sp.remove()}else{setTimeout(hide,1800);sp.addEventListener('click',hide)}
+})();
 boot();
 })();
 </script>
