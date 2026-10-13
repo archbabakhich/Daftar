@@ -245,13 +245,37 @@ function parseAmt(v){
   var n=parseFloat(v);return isFinite(n)?n:NaN;
 }
 var mk=function(d){return 'm_'+d.slice(0,7)};
+function backupJSON(){return JSON.stringify({v:1,entries:S.demo?[]:S.entries,contracts:S.demo?[]:S.contracts,settings:S.settings},null,1)}
+function canShareFiles(){try{return !!(navigator.canShare&&navigator.canShare({files:[new File(['{}'],'a.txt',{type:'text/plain'})]}))}catch(e){return false}}
+function backupDue(){
+  if(S.demo||cloud==='cloud')return false;
+  if(!S.entries.length&&!S.contracts.length)return false;
+  var lb=S.settings.lastBackup,sn=S.settings.since;
+  return lb?diffDays(lb,today())>=30:(sn?diffDays(sn,today())>=7:false);
+}
+function backupBanner(){
+  if(!backupDue())return '';
+  var lb=S.settings.lastBackup,sh=canShareFiles();
+  return '<div class="demo"><span>'+(lb?'بیش از یک ماه از آخرین پشتیبان گذشته.':'یک هفته از شروع کار گذشته و هنوز پشتیبان نگرفته‌اید.')+'</span><button class="btn sm" data-act="'+(sh?'share-backup':'exp-json')+'">'+(sh?'ارسال پشتیبان':'گرفتن پشتیبان')+'</button></div>';
+}
+function stamp(){S.settings.lastBackup=today();mark('app');render()}
+async function shareBackup(){
+  try{
+    var file=new File([backupJSON()],'daftar-hesab-'+today()+'.txt',{type:'text/plain'});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      await navigator.share({files:[file],title:'پشتیبان دفتر حساب',text:'پشتیبان دفتر حساب · '+fDate(today())});
+      stamp();return;
+    }
+  }catch(e){if(e&&e.name==='AbortError')return}
+  toast('ارسال فایل در این دستگاه ممکن نیست. از «پشتیبان کامل (JSON)» استفاده کنید.');
+}
 
 /* ---------- state ---------- */
 var CATS={
   'in':['حقوق','دریافتی پروژه','دریافتی دیگر'],
   'out':['اجاره و قبوض خانه','خوراک و خرید خانه','حمل‌ونقل','بیمه','اینترنت و موبایل','سلامت','تفریح و اشتراک‌ها','سایر هزینه‌ها']
 };
-var S={entries:[],contracts:[],settings:{cal:'g',cur:'€',warn:30},demo:false,ready:false};
+var S={entries:[],contracts:[],settings:{cal:'g',cur:'€',warn:30,lastBackup:'',since:''},demo:false,ready:false};
 var installEv=null,sheetOpen=false;
 window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();installEv=e;if(tab==='settings')render()});
 var tab='month',filter='all',anchor=today(),pending=null;
@@ -275,7 +299,7 @@ function sample(){
   ];
   S.demo=true;
 }
-function ensureReal(){if(S.demo){S.entries=[];S.contracts=[];S.demo=false}}
+function ensureReal(){if(S.demo){S.entries=[];S.contracts=[];S.demo=false}if(!S.settings.since)S.settings.since=today()}
 
 /* ---------- storage ---------- */
 var LS='daftar-hesab-v1',col=null,cloud='local',busy=false,saving=false,timer=null,dirty=new Set();
@@ -344,6 +368,7 @@ async function boot(){
       }
     }
   }catch(e){col=null;cloud='local'}
+  if((S.entries.length||S.contracts.length)&&!S.settings.since){S.settings.since=today();mirror()}
   if(!S.entries.length&&!S.contracts.length)sample();
   S.ready=true;
   render();setStatus();
@@ -413,7 +438,7 @@ function vMonth(){
   var dueTot=due.reduce(function(s,c){return s+(c.amount||0)},0);
   var paidTot=due.filter(function(c){return c.pm&&c.pm[key]}).reduce(function(s,c){return s+(c.amount||0)},0);
   var net=mi-mo-dueTot,al=alerts();
-  var h=demoBanner();
+  var h=demoBanner()+backupBanner();
   h+='<div class="toolbar"><button class="iconbtn" data-act="month" data-d="-1" aria-label="ماه قبل"><svg class="i" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button><h2>'+fMonth(anchor)+'</h2><button class="iconbtn" data-act="month" data-d="1" aria-label="ماه بعد"><svg class="i" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button></div>';
   if(al.length){
     h+='<section class="panel"><p class="label">قراردادهای در آستانه پایان یا مهلت لغو</p>'+al.map(function(x){
@@ -495,8 +520,8 @@ function vSettings(){
   h+='<div class="set-row"><span class="label">واحد پول</span>'+seg('set-cur',st.cur,[['€','€ یورو'],['$','$ دلار'],['تومان','تومان'],['ریال','ریال']])+'</div>';
   h+='<div class="set-row"><span class="label">هشدار پایان قرارداد، چند روز قبل</span>'+seg('set-warn',st.warn,[[7,'۷'],[14,'۱۴'],[30,'۳۰'],[45,'۴۵'],[60,'۶۰'],[90,'۹۰']])+'<p>قراردادی که تا این تعداد روز دیگر تمام می‌شود، یا مهلت لغو آن می‌رسد، در صفحه خلاصه و روی برگه قراردادها علامت می‌خورد.</p></div>';
   h+='</section><section class="panel"><p class="label">پشتیبان‌گیری</p><div class="actions">';
-  h+='<button class="btn ghost sm" data-act="exp-ledger">خروجی دفتر روزانه (CSV)</button><button class="btn ghost sm" data-act="exp-contracts">خروجی قراردادها (CSV)</button><button class="btn ghost sm" data-act="exp-json">پشتیبان کامل (JSON)</button>';
-  h+='<label class="btn ghost sm file" for="restore">بازیابی از پشتیبان<input type="file" id="restore" accept=".json,application/json"></label></div>';
+  h+=(canShareFiles()?'<button class="btn sm" data-act="share-backup">ارسال پشتیبان (ایمیل و …)</button>':'')+'<button class="btn ghost sm" data-act="exp-ledger">خروجی دفتر روزانه (CSV)</button><button class="btn ghost sm" data-act="exp-contracts">خروجی قراردادها (CSV)</button><button class="btn ghost sm" data-act="exp-json">پشتیبان کامل (JSON)</button>';
+  h+='<label class="btn ghost sm file" for="restore">بازیابی از پشتیبان<input type="file" id="restore" accept=".json,.txt,application/json,text/plain"></label></div><p class="hint" style="margin-top:10px">آخرین پشتیبان: '+(S.settings.lastBackup?fDate(S.settings.lastBackup):'هنوز گرفته نشده')+'</p>';
   if(pending)h+='<p class="hint" style="margin-top:12px">فایل خوانده شد: '+nf.format(pending.entries.length)+' ثبت و '+nf.format(pending.contracts.length)+' قرارداد. با بازیابی، داده‌های فعلی جایگزین می‌شوند.</p><div class="actions" style="margin-top:8px"><button class="btn sm" data-act="do-restore">جایگزین کن</button><button class="btn ghost sm" data-act="cancel-restore">انصراف</button></div>';
   h+='</section><section class="panel"><p class="label">ذخیره‌سازی</p><p class="hint" style="margin:0">داده‌ها فقط روی همین گوشی و داخل خود برنامه ذخیره می‌شوند و جای دیگری فرستاده نمی‌شوند. اگر برنامه یا اطلاعات مرورگر را پاک کنید، داده‌ها از بین می‌روند؛ پس گاهی «پشتیبان کامل» بگیرید و در جای امن نگه دارید.</p></section>'+(installEv?'<section class="panel"><p class="label">نصب</p><button class="btn" data-act="install">نصب روی صفحه اصلی گوشی</button></section>':'');
   return h;
@@ -670,7 +695,8 @@ function act(a,b){
     case 'exp-contracts':
       saveFile('gharardadha.csv',csv([['نوع','عنوان','طرف قرارداد','دوره','مبلغ هر دوره','معادل ماهانه','شروع','پایان میلادی','پایان شمسی','روز تا پایان','مهلت لغو (روز)','حساب واریز','شماره قرارداد','شماره مشتری','یادداشت']].concat(S.contracts.map(function(c){return [c.kind==='h'?'خانه':'شخصی',c.title,c.party,{m:'ماهانه',y:'سالانه',o:'یک‌بار'}[P(c)],c.amount,Math.round(monthly(c)*100)/100,c.start,c.end,fDate(c.end,'p'),diffDays(today(),c.end),c.notice||0,c.acct||'',c.cno||'',c.kno||'',c.note]}))));break;
     case 'exp-json':
-      saveFile('daftar-hesab-backup.json',JSON.stringify({v:1,entries:S.demo?[]:S.entries,contracts:S.demo?[]:S.contracts,settings:S.settings},null,1));break;
+      saveFile('daftar-hesab-backup.json',backupJSON());stamp();break;
+    case 'share-backup':shareBackup();break;
     case 'do-restore':
       if(!pending)break;
       var months={};S.entries.forEach(function(x){months[mk(x.date)]=1});pending.entries.forEach(function(x){months[mk(x.date)]=1});
