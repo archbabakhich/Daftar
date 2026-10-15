@@ -8,7 +8,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="دفتر حساب">
-<meta name="description" content="دفتر حساب شخصی: حساب ماهانه، قراردادها و اقساط، هزینه روزانه">
+<meta name="description" content="دفتر حساب شخصی: حساب ماهانه، قراردادها و اقساط، هزینه روزانه، لیست خرید">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -81,6 +81,13 @@ button{cursor:pointer}
 .bar i{display:block;height:100%;background:var(--accent)}
 .row{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;text-align:start;background:none;border:0;border-top:1px solid var(--line);padding:11px 0;min-width:0}
 .row:first-of-type{border-top:0}
+.shk{flex:none;width:30px;height:30px;border-radius:50%;border:2px solid var(--accent);background:none;display:grid;place-items:center;color:transparent;padding:0}
+.shk[aria-pressed="true"]{background:var(--in);border-color:var(--in);color:var(--surface)}
+.shk svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.shrow{display:flex;align-items:center;gap:12px;border-top:1px solid var(--line);padding:9px 0}
+.shrow .row-main{flex:1;background:none;border:0;text-align:start;padding:4px 0;color:inherit;font:inherit}
+.shrow.done .row-main b{text-decoration:line-through;opacity:.6}
+.shrow .sp{flex:none;color:var(--ink-2);font-size:13px}
 .row-main{display:flex;flex-direction:column;min-width:0}
 .row-main b{font-weight:500;overflow-wrap:anywhere}
 .row-main small{color:var(--ink-2);font-size:12.5px;overflow-wrap:anywhere}
@@ -124,8 +131,8 @@ svg.i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stro
 .row-main .ids{margin:0}
 .hactions{display:flex;align-items:center;gap:8px}
 .layers{position:sticky;top:env(safe-area-inset-top,0px);z-index:6;background:var(--bg);margin-inline:-16px;padding:8px 16px 10px;margin-bottom:12px}
-.layers>div{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:4px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
-.layer{position:relative;min-height:46px;border:0;border-radius:8px;background:none;font-size:13.5px;font-weight:500;line-height:1.35;padding:6px 4px;color:var(--ink-2)}
+.layers>div{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:4px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.layer{position:relative;min-height:46px;border:0;border-radius:8px;background:none;font-size:12.5px;font-weight:500;line-height:1.35;padding:6px 4px;color:var(--ink-2)}
 .layer[aria-selected="true"]{background:var(--accent);color:var(--on-accent);font-weight:700}
 .layer em{position:absolute;top:-9px;inset-inline-end:2px;font-style:normal;min-width:18px;height:18px;border-radius:9px;background:var(--out);color:var(--surface);font-size:11px;font-weight:700;display:grid;place-items:center;padding:0 5px;border:2px solid var(--bg)}
 .pill.pay{min-height:40px;white-space:nowrap}
@@ -190,6 +197,7 @@ svg.i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stro
       <button class="layer" role="tab" data-act="tab" data-tab="month">حساب ماهانه</button>
       <button class="layer" role="tab" data-act="tab" data-tab="contracts" id="tab-contracts">قراردادها و اقساط</button>
       <button class="layer" role="tab" data-act="tab" data-tab="ledger">هزینه روزانه</button>
+      <button class="layer" role="tab" data-act="tab" data-tab="shop">لیست خرید</button>
     </div>
   </div>
   <main id="view"></main>
@@ -257,11 +265,11 @@ function parseAmt(v){
   var n=parseFloat(v);return isFinite(n)?n:NaN;
 }
 var mk=function(d){return 'm_'+d.slice(0,7)};
-function backupJSON(){return JSON.stringify({v:1,entries:S.demo?[]:S.entries,contracts:S.demo?[]:S.contracts,settings:S.settings},null,1)}
+function backupJSON(){return JSON.stringify({v:1,entries:S.demo?[]:S.entries,contracts:S.demo?[]:S.contracts,shop:S.shop,settings:S.settings},null,1)}
 function canShareFiles(){try{return !!(navigator.canShare&&navigator.canShare({files:[new File(['{}'],'a.txt',{type:'text/plain'})]}))}catch(e){return false}}
 function backupDue(){
   if(S.demo||cloud==='cloud')return false;
-  if(!S.entries.length&&!S.contracts.length)return false;
+  if(!S.entries.length&&!S.contracts.length&&!S.shop.length)return false;
   var lb=S.settings.lastBackup,sn=S.settings.since;
   return lb?diffDays(lb,today())>=30:(sn?diffDays(sn,today())>=7:false);
 }
@@ -287,7 +295,7 @@ var CATS={
   'in':['حقوق','دریافتی پروژه','دریافتی دیگر'],
   'out':['اجاره و قبوض خانه','خوراک و خرید خانه','حمل‌ونقل','بیمه','اینترنت و موبایل','سلامت','تفریح و اشتراک‌ها','سایر هزینه‌ها']
 };
-var S={entries:[],contracts:[],settings:{cal:'g',cur:'€',warn:30,lastBackup:'',since:''},demo:false,ready:false};
+var S={entries:[],contracts:[],shop:[],settings:{cal:'g',cur:'€',warn:30,lastBackup:'',since:''},demo:false,ready:false};
 var installEv=null,sheetOpen=false;
 window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();installEv=e;if(tab==='settings')render()});
 var tab='month',filter='all',anchor=today(),pending=null;
@@ -316,7 +324,7 @@ function ensureReal(){if(S.demo){S.entries=[];S.contracts=[];S.demo=false}if(!S.
 /* ---------- storage ---------- */
 var LS='daftar-hesab-v1',col=null,cloud='local',busy=false,saving=false,timer=null,dirty=new Set();
 function mirror(){
-  try{localStorage.setItem(LS,JSON.stringify({entries:S.demo?[]:S.entries,contracts:S.demo?[]:S.contracts,settings:S.settings}))}catch(e){}
+  try{localStorage.setItem(LS,JSON.stringify({entries:S.demo?[]:S.entries,contracts:S.demo?[]:S.contracts,shop:S.shop,settings:S.settings}))}catch(e){}
 }
 function setStatus(){
   var el=$('#status');if(!el)return;
@@ -333,7 +341,7 @@ async function flush(){
     while(dirty.size){
       var k=dirty.values().next().value;
       if(k==='app'){
-        await col.doc('app').set({v:1,contracts:S.demo?[]:S.contracts,settings:S.settings});
+        await col.doc('app').set({v:1,contracts:S.demo?[]:S.contracts,shop:S.shop,settings:S.settings});
       }else{
         var list=S.entries.filter(function(e){return mk(e.date)===k});
         if(list.length)await col.doc(k).set({entries:list});else await col.doc(k).delete();
@@ -349,10 +357,10 @@ async function boot(){
   var local=null;
   try{local=JSON.parse(localStorage.getItem(LS)||'null')}catch(e){}
   if(local){
-    S.entries=local.entries||[];S.contracts=local.contracts||[];
+    S.entries=local.entries||[];S.contracts=local.contracts||[];S.shop=Array.isArray(local.shop)?local.shop:[];
     S.settings=Object.assign({},S.settings,local.settings||{});
   }
-  var hasLocal=S.entries.length||S.contracts.length;
+  var hasLocal=S.entries.length||S.contracts.length||S.shop.length;
   if(hasLocal){S.ready=true}
   render();
   try{
@@ -364,13 +372,13 @@ async function boot(){
         col=r[0].collection('data/users/'+id);
         var snap=await col.get();
         if(!snap.empty){
-          var ent=[],con=[],set=null;
+          var ent=[],con=[],shp=[],set=null;
           snap.docs.forEach(function(d){
             var x=d.data()||{};
-            if(d.id==='app'){con=x.contracts||[];set=x.settings||null}
+            if(d.id==='app'){con=x.contracts||[];shp=x.shop||[];set=x.settings||null}
             else if(d.id.indexOf('m_')===0){ent=ent.concat(x.entries||[])}
           });
-          S.entries=ent;S.contracts=con;
+          S.entries=ent;S.contracts=con;S.shop=shp;
           if(set)S.settings=Object.assign({},S.settings,set);
         }else if(hasLocal){
           dirty.add('app');S.entries.forEach(function(e){dirty.add(mk(e.date))});
@@ -380,8 +388,8 @@ async function boot(){
       }
     }
   }catch(e){col=null;cloud='local'}
-  if((S.entries.length||S.contracts.length)&&!S.settings.since){S.settings.since=today();mirror()}
-  if(!S.entries.length&&!S.contracts.length)sample();
+  if((S.entries.length||S.contracts.length||S.shop.length)&&!S.settings.since){S.settings.since=today();mirror()}
+  if(!S.entries.length&&!S.contracts.length&&!S.shop.length)sample();
   S.ready=true;
   render();setStatus();
 }
@@ -501,6 +509,60 @@ function vLedger(){
   }
   return h;
 }
+
+/* ---------- shopping list ---------- */
+var fromShop=false;
+var CHK='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+function shopLine(it){
+  return '<div class="shrow'+(it.done?' done':'')+'"><button class="shk" data-act="shop-toggle" data-id="'+it.id+'" aria-pressed="'+!!it.done+'" aria-label="'+(it.done?'برگرداندن به لیست':'خریده شد')+'">'+CHK+'</button>'+
+    '<button class="row-main" data-act="shop-edit" data-id="'+it.id+'"><b>'+esc(it.t)+'</b>'+(it.qty?'<small>'+esc(it.qty)+'</small>':'')+'</button>'+
+    (it.price>0?'<span class="sp">'+money(it.price)+'</span>':'')+'</div>';
+}
+function vShop(){
+  var open=S.shop.filter(function(x){return !x.done}),done=S.shop.filter(function(x){return x.done});
+  var est=open.reduce(function(s,x){return s+(x.price||0)},0),spent=done.reduce(function(s,x){return s+(x.price||0)},0);
+  var h=demoBanner();
+  h+='<section class="panel"><div class="inline"><input id="shop-new" type="text" autocomplete="off" enterkeyhint="done" placeholder="چه چیزی باید بخرید؟" aria-label="مورد تازه"><button class="btn" data-act="shop-add">افزودن</button></div></section>';
+  if(!S.shop.length)return h+'<p class="empty">لیست خرید خالی است. مورد را بنویسید و «افزودن» را بزنید. اقلام را می‌توانید با ضربه روی نام، مقدار و قیمت تقریبی بدهید.</p>';
+  h+='<section class="panel"><p class="label">باید خرید · '+nf.format(open.length)+' مورد'+(est>0?' · برآورد '+money(est):'')+'</p>';
+  h+=open.length?open.map(shopLine).join(''):'<p class="empty">همه چیز خریده شد ✓</p>';
+  if(open.length)h+='<div class="actions" style="margin-top:10px"><button class="btn ghost sm" data-act="shop-share">ارسال یا کپی لیست</button></div>';
+  h+='</section>';
+  if(done.length){
+    h+='<section class="panel"><p class="label">خریده‌شده · '+nf.format(done.length)+' مورد'+(spent>0?' · '+money(spent):'')+'</p>'+done.map(shopLine).join('')+
+      '<div class="actions" style="margin-top:10px"><button class="btn sm" data-act="shop-ledger">ثبت در هزینه روزانه</button><button class="btn ghost sm" data-act="shop-clear">پاک‌کردن خریده‌شده‌ها</button></div></section>';
+  }
+  return h;
+}
+function shopAdd(){
+  var el=$('#shop-new'),t=el?el.value.trim():'';if(!t)return;
+  ensureReal();
+  S.shop.unshift({id:uid(),t:t,qty:'',price:0,done:0});
+  mark('app');render();var n=$('#shop-new');if(n)n.focus();
+}
+function openShop(id){
+  var it=S.shop.filter(function(x){return x.id===id})[0];if(!it)return;
+  openSheet('<h2 class="sh-title">ویرایش مورد</h2>'+
+    '<div class="field"><label for="f-sname">نام</label><input id="f-sname" type="text" autocomplete="off" value="'+esc(it.t)+'"></div>'+
+    '<div class="field"><label for="f-sqty">مقدار (اختیاری)</label><input id="f-sqty" type="text" autocomplete="off" placeholder="مثلاً ۲ بسته" value="'+esc(it.qty||'')+'"></div>'+
+    '<div class="field"><label for="f-sprice">قیمت تقریبی ('+esc(S.settings.cur)+', اختیاری)</label><input id="f-sprice" type="text" inputmode="decimal" autocomplete="off" placeholder="0" value="'+(it.price>0?it.price:'')+'"></div>'+
+    '<p class="err" id="f-err" role="alert"></p>'+
+    '<div class="actions"><button class="btn" data-act="save-shop" data-id="'+it.id+'">ذخیره</button><button class="btn danger" data-act="del" data-kind="shop" data-id="'+it.id+'">حذف</button><button class="btn ghost" data-act="close">انصراف</button></div>');
+}
+function saveShop(id){
+  var it=S.shop.filter(function(x){return x.id===id})[0];if(!it)return;
+  var t=$('#f-sname').value.trim();if(!t)return ferr('نام را بنویسید.');
+  var pv=$('#f-sprice').value.trim(),pr=pv?parseAmt(pv):0;if(isNaN(pr)||pr<0)return ferr('قیمت را به صورت عدد وارد کنید.');
+  it.t=t;it.qty=$('#f-sqty').value.trim();it.price=pr;mark('app');closeSheet();render();
+}
+function shopText(){
+  return 'لیست خرید\n'+S.shop.filter(function(x){return !x.done}).map(function(x){return '☐ '+x.t+(x.qty?' ('+x.qty+')':'')}).join('\n');
+}
+async function shopShare(){
+  var t=shopText();
+  try{if(navigator.share){await navigator.share({title:'لیست خرید',text:t});return}}catch(e){if(e&&e.name==='AbortError')return}
+  copyText(t);
+}
 function vContracts(){
   var rows=S.contracts.map(function(c){return {c:c,i:cInfo(c)}});
   var fl={all:function(){return true},h:function(x){return x.c.kind==='h'&&x.i.left>=0},p:function(x){return x.c.kind!=='h'&&x.i.left>=0},soon:isAlert,done:function(x){return x.i.left<0}};
@@ -542,7 +604,7 @@ function vSettings(){
 function render(){
   var v=$('#view');if(!v)return;
   $('#today').textContent=fDay(today())+' · '+fDate(today(),S.settings.cal==='p'?'g':'p');
-  v.innerHTML=!S.ready?'<p class="empty">در حال بارگذاری دفتر…</p>':({month:vMonth,ledger:vLedger,contracts:vContracts,settings:vSettings}[tab])();
+  v.innerHTML=!S.ready?'<p class="empty">در حال بارگذاری دفتر…</p>':({month:vMonth,ledger:vLedger,shop:vShop,contracts:vContracts,settings:vSettings}[tab])();
   document.querySelectorAll('.layer').forEach(function(b){b.setAttribute('aria-selected',String(b.dataset.tab===tab))});
   var n=S.ready?alerts().filter(function(x){return x.i.left>=0}).length:0,tc=$('#tab-contracts'),old=tc.querySelector('em');
   if(old)old.remove();
@@ -571,13 +633,14 @@ function catOpts(t,cur){
   var l=CATS[t].slice();if(cur&&l.indexOf(cur)<0)l.push(cur);
   return l.map(function(c){return '<option'+(c===cur?' selected':'')+'>'+esc(c)+'</option>'}).join('');
 }
-function openEntry(id,type){
+function openEntry(id,type,pre){
+  fromShop=!!(pre&&pre.shop);pre=pre||{};
   var e=(!S.demo&&id)?S.entries.filter(function(x){return x.id===id})[0]:null,t=e?e.type:(type||'out');
   openSheet('<h2 class="sh-title">'+(e?'ویرایش ثبت':'ثبت تازه')+'</h2>'+
     '<div class="seg" role="radiogroup" aria-label="نوع"><label><input type="radio" name="f-type" value="in"'+(t==='in'?' checked':'')+'><span>دریافتی</span></label><label><input type="radio" name="f-type" value="out"'+(t==='out'?' checked':'')+'><span>هزینه</span></label></div>'+
-    '<div class="field"><label for="f-amt">مبلغ ('+esc(S.settings.cur)+')</label><input id="f-amt" type="text" inputmode="decimal" autocomplete="off" placeholder="0" value="'+(e?e.amount:'')+'"></div>'+
-    '<div class="field"><label for="f-cat">دسته</label><select id="f-cat">'+catOpts(t,e&&e.cat)+'</select></div>'+
-    '<div class="field"><label for="f-note">توضیح</label><input id="f-note" type="text" autocomplete="off" placeholder="نام پروژه یا طرف حساب" value="'+esc(e?e.note:'')+'"></div>'+
+    '<div class="field"><label for="f-amt">مبلغ ('+esc(S.settings.cur)+')</label><input id="f-amt" type="text" inputmode="decimal" autocomplete="off" placeholder="0" value="'+(e?e.amount:(pre.amount||''))+'"></div>'+
+    '<div class="field"><label for="f-cat">دسته</label><select id="f-cat">'+catOpts(t,e?e.cat:pre.cat)+'</select></div>'+
+    '<div class="field"><label for="f-note">توضیح</label><input id="f-note" type="text" autocomplete="off" placeholder="نام پروژه یا طرف حساب" value="'+esc(e?e.note:(pre.note||''))+'"></div>'+
     '<div class="field"><label for="f-date">تاریخ</label><input id="f-date" type="date" value="'+(e?e.date:today())+'"><p class="hint" id="f-hint">'+dateHint(e?e.date:today())+'</p></div>'+
     '<p class="err" id="f-err" role="alert"></p>'+
     '<div class="actions"><button class="btn" data-act="save-entry" data-id="'+(e?e.id:'')+'">ذخیره</button>'+(e?'<button class="btn danger" data-act="del" data-kind="entry" data-id="'+e.id+'">حذف</button>':'')+'<button class="btn ghost" data-act="close">انصراف</button></div>');
@@ -612,7 +675,9 @@ function saveEntry(id){
     var i=S.entries.findIndex(function(e){return e.id===id});
     if(i>=0){mark(mk(S.entries[i].date));S.entries[i]=rec}else S.entries.push(rec);
   }else S.entries.push(rec);
-  mark(mk(date));anchor=date;closeSheet();render();
+  mark(mk(date));anchor=date;
+  if(fromShop){S.shop=S.shop.filter(function(x){return !x.done});mark('app');fromShop=false;toast('ثبت شد و خریده‌شده‌ها از لیست پاک شدند.')}
+  closeSheet();render();
 }
 function saveContract(id){
   var title=$('#f-title').value.trim(),end=$('#f-end').value,start=$('#f-start').value;
@@ -648,7 +713,8 @@ function readBackup(file){
       var o=JSON.parse(r.result);
       var ent=(o.entries||[]).filter(function(e){return e&&(e.type==='in'||e.type==='out')&&e.amount>0&&/^\d{4}-\d{2}-\d{2}$/.test(e.date||'')}).map(function(e){return {id:e.id||uid(),type:e.type,amount:+e.amount,cat:String(e.cat||''),note:String(e.note||''),date:e.date}});
       var con=(o.contracts||[]).filter(function(c){return c&&c.title&&/^\d{4}-\d{2}-\d{2}$/.test(c.end||'')}).map(function(c){return {id:c.id||uid(),kind:c.kind==='h'?'h':'p',title:String(c.title),party:String(c.party||''),period:c.period||'o',amount:+c.amount||0,notice:+c.notice||0,pm:(c.pm&&typeof c.pm==='object')?c.pm:{},acct:String(c.acct||''),cno:String(c.cno||''),kno:String(c.kno||''),start:c.start||'',end:c.end,note:String(c.note||'')}});
-      pending={entries:ent,contracts:con,settings:o.settings||null};
+      var shp=(Array.isArray(o.shop)?o.shop:[]).filter(function(x){return x&&x.t}).map(function(x){return {id:x.id||uid(),t:String(x.t),qty:String(x.qty||''),price:+x.price||0,done:x.done?1:0}});
+      pending={entries:ent,contracts:con,shop:shp,settings:o.settings||null};
     }catch(e){pending=null;toast('این فایل پشتیبان معتبر نیست.')}
     render();
   };
@@ -671,11 +737,20 @@ function act(a,b){
   var d=b.dataset;
   switch(a){
     case 'tab':tab=d.tab;pending=null;window.scrollTo(0,0);render();break;
-    case 'fab':tab==='contracts'?openContract():openEntry(null,'out');break;
+    case 'fab':if(tab==='shop'){var sn=$('#shop-new');if(sn){sn.scrollIntoView({block:'center'});sn.focus()}}else tab==='contracts'?openContract():openEntry(null,'out');break;
     case 'new-entry':openEntry(null,d.type);break;
     case 'edit-entry':openEntry(d.id);break;
     case 'new-contract':openContract();break;
     case 'edit-contract':openContract(d.id);break;
+    case 'shop-add':shopAdd();break;
+    case 'shop-toggle':{var si=S.shop.filter(function(x){return x.id===d.id})[0];if(si){si.done=si.done?0:1;mark('app');render()}break}
+    case 'shop-edit':openShop(d.id);break;
+    case 'save-shop':saveShop(d.id);break;
+    case 'shop-share':shopShare();break;
+    case 'shop-clear':S.shop=S.shop.filter(function(x){return !x.done});mark('app');render();toast('خریده‌شده‌ها پاک شد.');break;
+    case 'shop-ledger':{var dn=S.shop.filter(function(x){return x.done});if(!dn.length)break;
+      var tot=dn.reduce(function(s,x){return s+(x.price||0)},0);
+      openEntry(null,'out',{amount:tot>0?tot:'',cat:'خوراک و خرید خانه',note:dn.map(function(x){return x.t}).join('، ').slice(0,100),shop:1});break}
     case 'close':closeSheet();break;
     case 'month':var mr=monthRange(anchor,S.settings.cal);anchor=d.d==='1'?addDays(mr.end,1):addDays(mr.start,-1);render();break;
     case 'filter':filter=d.v;render();break;
@@ -690,7 +765,8 @@ function act(a,b){
       if(d.kind==='entry'){
         var e=S.entries.filter(function(x){return x.id===d.id})[0];
         S.entries=S.entries.filter(function(x){return x.id!==d.id});if(e)mark(mk(e.date));
-      }else{S.contracts=S.contracts.filter(function(x){return x.id!==d.id});mark('app')}
+      }else if(d.kind==='shop'){S.shop=S.shop.filter(function(x){return x.id!==d.id});mark('app')}
+      else{S.contracts=S.contracts.filter(function(x){return x.id!==d.id});mark('app')}
       closeSheet();render();toast('حذف شد.');break;
     case 'copy':copyText(d.v);break;
     case 'copy-field':copyText(($('#'+d.f)||{}).value);break;
@@ -713,7 +789,7 @@ function act(a,b){
     case 'do-restore':
       if(!pending)break;
       var months={};S.entries.forEach(function(x){months[mk(x.date)]=1});pending.entries.forEach(function(x){months[mk(x.date)]=1});
-      S.demo=false;S.entries=pending.entries;S.contracts=pending.contracts;
+      S.demo=false;S.entries=pending.entries;S.contracts=pending.contracts;S.shop=pending.shop||[];
       if(pending.settings)S.settings=Object.assign({},S.settings,pending.settings);
       Object.keys(months).forEach(function(k){dirty.add(k)});mark('app');pending=null;render();toast('بازیابی انجام شد.');break;
     case 'cancel-restore':pending=null;render();break;
@@ -728,7 +804,7 @@ document.addEventListener('change',function(ev){
   if(t.id==='f-end'){$('#f-hint-e').textContent=dateHint(t.value)}
   if(t.id==='restore'&&t.files[0])readBackup(t.files[0]);
 });
-document.addEventListener('keydown',function(ev){if(ev.key==='Escape')closeSheet()});
+document.addEventListener('keydown',function(ev){if(ev.key==='Escape')closeSheet();if(ev.key==='Enter'&&ev.target&&ev.target.id==='shop-new'){ev.preventDefault();shopAdd()}});
 
 document.addEventListener('visibilitychange',function(){if(!document.hidden&&S.ready&&!sheetOpen){anchor=anchor;render()}});
 try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
